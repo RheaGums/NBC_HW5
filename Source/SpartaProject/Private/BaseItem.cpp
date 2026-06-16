@@ -49,6 +49,8 @@ void ABaseItem::OnItemEndOverlap(UPrimitiveComponent* OverlappedComp,
 
 void ABaseItem::ActivateItem(AActor* Activator)
 {
+	if (Activator == nullptr) return;
+	
 	UParticleSystemComponent* Particle = nullptr;
 	if (PickupParticle)
 	{

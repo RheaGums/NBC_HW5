@@ -34,5 +34,5 @@ void ADebuffItem::ActivateItem(AActor* Activator)
 		ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 	}
 	
-	DestroyItem();
+	SetLifeSpan(0.1f);
 }

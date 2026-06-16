@@ -23,6 +23,7 @@ AMineItem::AMineItem()
 
 void AMineItem::ActivateItem(AActor* Activator)
 {
+	if (Activator == nullptr) return;
 	if (bHasExploded) return;
 	Super::ActivateItem(Activator);
 	// 5초 후 폭발 실행
@@ -55,7 +56,7 @@ void AMineItem::Explode()
 
 	for (AActor* Actor : OverlappingActors)
 	{
-		if (Actor && Actor->ActorHasTag("Player"))
+		if (Actor && Actor->IsValidLowLevel() && Actor->ActorHasTag("Player"))
 		{
 			UGameplayStatics::ApplyDamage(
 				Actor,

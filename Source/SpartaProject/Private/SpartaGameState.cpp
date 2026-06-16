@@ -92,70 +92,72 @@ void ASpartaGameState::OnLevelTimeUp()
 
 void ASpartaGameState::StartWave(int32 WaveIndex)
 {
-	CurrentWaveIndex = WaveIndex;
-	UE_LOG(LogTemp, Warning, TEXT("Starting Wave %d"), CurrentWaveIndex + 1);
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			-1, 3.0f, FColor::Yellow,
-			FString::Printf(TEXT("Starting Wave %d"), CurrentWaveIndex + 1)
-		);
-	}
+    CurrentWaveIndex = WaveIndex;
+    UE_LOG(LogTemp, Warning, TEXT("Starting Wave %d"), CurrentWaveIndex + 1);
+    if (GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(
+            -1, 3.0f, FColor::Yellow,
+            FString::Printf(TEXT("Starting Wave %d"), CurrentWaveIndex + 1)
+        );
+    }
 
-	TArray<AActor*> FoundVolumes;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
+    FTimerHandle SpawnDelayHandle;
+    GetWorldTimerManager().SetTimer(SpawnDelayHandle, [this, WaveIndex]()
+    {
+        TArray<AActor*> FoundVolumes;
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
 
-	if (FoundVolumes.Num() > 0)
-	{
-		ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]);
-		if (SpawnVolume)
-		{
-			// WaveData에서 시간, 스폰 개수 읽어오기
-			FWaveSpawnRow* WaveData = SpawnVolume->GetWaveData(WaveIndex);
-			if (WaveData)
-			{
-				WaveDuration = WaveData->WaveTime;
-				ItemSpawnCountPerWave = WaveData->SpawnCount;
-			}
+        if (FoundVolumes.Num() > 0)
+        {
+            ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]);
+            if (SpawnVolume)
+            {
+                FWaveSpawnRow* WaveData = SpawnVolume->GetWaveData(WaveIndex);
+                if (WaveData)
+                {
+                    WaveDuration = WaveData->WaveTime;
+                    ItemSpawnCountPerWave = WaveData->SpawnCount;
+                }
 
-			SpawnVolume->SetWaveIndex(CurrentWaveIndex);
-			for (int32 i = 0; i < ItemSpawnCountPerWave; i++)
-			{
-				AActor* SpawnedActor = SpawnVolume->SpawnRandomItem();
-				if (SpawnedActor && SpawnedActor->IsA(ACoinItem::StaticClass()))
-				{
-					SpawnedCoinCount++;
-				}
-			}
-		}
-	}
+                SpawnVolume->SetWaveIndex(CurrentWaveIndex);
+                for (int32 i = 0; i < ItemSpawnCountPerWave; i++)
+                {
+                    AActor* SpawnedActor = SpawnVolume->SpawnRandomItem();
+                    if (SpawnedActor && SpawnedActor->IsA(ACoinItem::StaticClass()))
+                    {
+                        SpawnedCoinCount++;
+                    }
+                }
+            }
+        }
 
-	GetWorldTimerManager().SetTimer(
-		LevelTimerHandle,
-		this,
-		&ASpartaGameState::OnWaveTimeUp,
-		WaveDuration,
-		false
-	);
-	switch (CurrentWaveIndex)
-	{
-	case 0: // Wave 1 (인덱스 0)
-		ShowWaveNotification(TEXT("Wave 1: 아이템을 수집하세요!"));
-		break;
+        GetWorldTimerManager().SetTimer(
+            LevelTimerHandle,
+            this,
+            &ASpartaGameState::OnWaveTimeUp,
+            WaveDuration,
+            false
+        );
 
-	case 1: // Wave 2 (인덱스 1)
-		ShowWaveNotification(TEXT("위험! 스파이크 함정이 발동되었습니다...!"));
-		ActivateSpikeTraps(); // 👈 웨이브 2 기믹 함수 호출
-		break;
+        switch (CurrentWaveIndex)
+        {
+        case 0:
+            ShowWaveNotification(TEXT("Wave 1: 아이템을 수집하세요!"));
+            break;
+        case 1:
+            ShowWaveNotification(TEXT("위험! 스파이크 함정이 발동되었습니다...!"));
+            ActivateSpikeTraps();
+            break;
+        case 2:
+            ShowWaveNotification(TEXT("경고! 맵 전역에 무작위 폭발이 발생합니다!"));
+            StartRandomExplosions();
+            break;
+        default:
+            break;
+        }
 
-	case 2: // Wave 3 (인덱스 2)
-		ShowWaveNotification(TEXT("경고! 맵 전역에 무작위 폭발이 발생합니다!"));
-		StartRandomExplosions(); // 👈 웨이브 3 기믹 함수 호출
-		break;
-
-	default:
-		break;
-	}
+    }, 0.1f, false);
 }
 
 void ASpartaGameState::EndWave()
