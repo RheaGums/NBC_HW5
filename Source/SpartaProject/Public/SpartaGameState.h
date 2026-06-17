@@ -33,6 +33,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
 	TArray<FName>LevelMapNames;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Explosion")
+	TSubclassOf<class AExplosionActor> ExplosionActorClass;
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Wave")
 	int32 CurrentWaveIndex;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Wave")

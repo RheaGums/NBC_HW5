@@ -7,6 +7,7 @@
 #include "ItemSpawnRow.h"
 #include "CoinItem.h"
 #include "SpikeTrap.h"
+#include "ExplosionActor.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/TextBlock.h"
 #include "Blueprint/UserWidget.h"
@@ -102,6 +103,10 @@ void ASpartaGameState::StartWave(int32 WaveIndex)
         );
     }
 
+    // 💡 첫 웨이브(0번)일 때는 메인 메뉴 전환 직후이므로 0.5초의 안전 시간을 주고,
+    // 인게임 내에서 자연스럽게 전환되는 다음 웨이브(1, 2번)들은 기존대로 0.1초만에 바로 실행되도록 가변 딜레이를 적용합니다.
+    float InitialDelay = (WaveIndex == 0) ? 0.5f : 0.1f;
+
     FTimerHandle SpawnDelayHandle;
     GetWorldTimerManager().SetTimer(SpawnDelayHandle, [this, WaveIndex]()
     {
@@ -121,15 +126,27 @@ void ASpartaGameState::StartWave(int32 WaveIndex)
                 }
 
                 SpawnVolume->SetWaveIndex(CurrentWaveIndex);
+                
+                int32 ActualSpawnedCount = 0; // 로그 확인용 변수
                 for (int32 i = 0; i < ItemSpawnCountPerWave; i++)
                 {
                     AActor* SpawnedActor = SpawnVolume->SpawnRandomItem();
-                    if (SpawnedActor && SpawnedActor->IsA(ACoinItem::StaticClass()))
+                    if (SpawnedActor)
                     {
-                        SpawnedCoinCount++;
+                        ActualSpawnedCount++;
+                        if (SpawnedActor->IsA(ACoinItem::StaticClass()))
+                        {
+                            SpawnedCoinCount++;
+                        }
                     }
                 }
+                UE_LOG(LogTemp, Log, TEXT("[GameState] Wave %d 스폰 시도 결과: 요청 %d개 중 %d개 성공"), WaveIndex + 1, ItemSpawnCountPerWave, ActualSpawnedCount);
             }
+        }
+        else
+        {
+            // 💡 디버깅용 로그: 만약 0.5초 뒤에도 스폰 볼륨을 못 찾으면 맵 배치 상태를 봐야 합니다.
+            UE_LOG(LogTemp, Error, TEXT("[GameState]  월드에서 SpawnVolume 액터를 찾지 못했습니다!"));
         }
 
         GetWorldTimerManager().SetTimer(
@@ -152,12 +169,13 @@ void ASpartaGameState::StartWave(int32 WaveIndex)
         case 2:
             ShowWaveNotification(TEXT("경고! 맵 전역에 무작위 폭발이 발생합니다!"));
             StartRandomExplosions();
+        	ActivateSpikeTraps();
             break;
         default:
             break;
         }
 
-    }, 0.1f, false);
+    }, InitialDelay, false);
 }
 
 void ASpartaGameState::EndWave()
@@ -186,11 +204,9 @@ void ASpartaGameState::EndWave()
 
 void ASpartaGameState::ClearExistingItems()
 {
-	// 필드에 남아있는 모든 아이템을 담을 배열
+
 	TArray<AActor*> FoundItems;
-    
-	// 💡 [주의] 만약 모든 아이템의 부모 클래스가 ACoinItem이 아니라면, 
-	// 프로젝트에서 만든 아이템들의 최상위 부모 C++ 클래스(예: ABaseItem 등)를 넣어주셔야 합니다.
+	
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseItem::StaticClass(), FoundItems);
     
 	for (AActor* Item : FoundItems)
@@ -200,8 +216,7 @@ void ASpartaGameState::ClearExistingItems()
 			Item->Destroy(); // 액터 삭제
 		}
 	}
-
-	// 💡 다음 웨이브를 위해 코인 카운트도 초기화해줍니다.
+	
 	SpawnedCoinCount = 0;
 	CollectedCoinCount = 0;
 }
@@ -242,7 +257,6 @@ void ASpartaGameState::EndLevel()
 			
 			if (LevelMapNames.IsValidIndex(CurrentLevelIndex))
 			{
-				// ✅ 타이머로 한 프레임 뒤에 레벨 전환
 				FTimerHandle LevelChangeTimer;
 				FName NextLevel = LevelMapNames[CurrentLevelIndex];
 				GetWorldTimerManager().SetTimer(LevelChangeTimer, [this, NextLevel]()
@@ -321,7 +335,6 @@ void ASpartaGameState::ShowWaveNotification(FString Message)
 				{
 					NotiText->SetText(FText::FromString(Message));
                     
-					// 💡 [수정] 위험한 람다 함수 대신, 객체 안전성이 보장되는 멤버 함수 호출 방식을 씁니다.
 					FTimerHandle ClearNotiTimer;
 					GetWorldTimerManager().SetTimer(
 						ClearNotiTimer, 
@@ -337,9 +350,8 @@ void ASpartaGameState::ShowWaveNotification(FString Message)
 }
 void ASpartaGameState::StartRandomExplosions()
 {
-	// 3초마다 지속적으로 폭발을 일으키는 타이머 가동
 	GetWorldTimerManager().SetTimer(
-		ExplosionTimerHandle, // 👈 .h 파일에 FTimerHandle ExplosionTimerHandle; 추가 필요
+		ExplosionTimerHandle,
 		this,
 		&ASpartaGameState::TriggerSingleExplosion,
 		3.0f,
@@ -349,17 +361,30 @@ void ASpartaGameState::StartRandomExplosions()
 
 void ASpartaGameState::TriggerSingleExplosion()
 {
-	// 플레이어 캐릭터 위치 가져오기
+	if (!ExplosionActorClass) 
+	{
+		UE_LOG(LogTemp, Error, TEXT("[GameState] ExplosionActorClass가 지정되지 않았습니다!"));
+		return;
+	}
+
+
 	if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
 	{
 		FVector PlayerLoc = PlayerPawn->GetActorLocation();
-        
-		// 플레이어 주변 무작위 반경 (예: 500 내외) 계산
+		
 		FVector ExplosionLoc = PlayerLoc + FVector(FMath::FRandRange(-500.f, 500.f), FMath::FRandRange(-500.f, 500.f), 0.f);
+		
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn; // 어떤 지형이든 씹고 무조건 스폰 보장
         
-		// 1. 여기에 폭발 이펙트(SpawnEmitterAtLocation)나 사운드를 재생하거나
-		// 2. 폭발 콜라이더 액터를 해당 위치에 Spawn해서 플레이어가 맞으면 대미지를 입게 처리!
-		UE_LOG(LogTemp, Warning, TEXT("플레이어 근처 폭발 발생 위치: %s"), *ExplosionLoc.ToString());
+		GetWorld()->SpawnActor<AExplosionActor>(
+			ExplosionActorClass, 
+			ExplosionLoc, 
+			FRotator::ZeroRotator, 
+			SpawnParams
+		);
+        
+		UE_LOG(LogTemp, Warning, TEXT("[GameState] 플레이어 근처 폭발 액터 생성 완료! 위치: %s"), *ExplosionLoc.ToString());
 	}
 }
 
@@ -373,7 +398,6 @@ void ASpartaGameState::ActivateSpikeTraps()
 	{
 		if (ASpikeTrap* Trap = Cast<ASpikeTrap>(Actor))
 		{
-			// 💡 함정을 활성화 상태로 만듭니다!
 			Trap->SetTrapActive(true);
 		}
 	}

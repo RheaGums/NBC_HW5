@@ -4,10 +4,9 @@
 #include "SpawnVolume.h"
 #include "Components/BoxComponent.h"
 
-// Sets default values
+
 ASpawnVolume::ASpawnVolume()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 	
 	Scene = CreateDefaultSubobject<USceneComponent>(TEXT("Scene"));
@@ -94,14 +93,12 @@ FItemSpawnRow* ASpawnVolume::GetRandomItem() const
 		if (!Row) continue;
        
 		AccumulateChance += Row->SpawnChance;
-		// 💡 Row->SpawnChance 대신 누적된 확률(AccumulateChance)과 비교해야 합니다!
 		if (RandValue <= AccumulateChance) 
 		{
 			return Row;
 		}
 	}
     
-	// 혹시 모를 예외 처리용으로 마지막 원소 반환
 	return AllRows.Last();
 }
 

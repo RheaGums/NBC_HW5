@@ -77,7 +77,7 @@ void AMineItem::Explode()
 		GetWorld()->GetTimerManager().SetTimer(DestroyParticleTimerHandle,
 			[Particle]()
 			{
-				if (Particle && Particle->IsValidLowLevel()) // ✅ 유효성 체크 추가
+				if (Particle && Particle->IsValidLowLevel())
 				{
 					Particle->DestroyComponent();
 				}
