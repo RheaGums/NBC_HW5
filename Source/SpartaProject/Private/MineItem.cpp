@@ -1,7 +1,10 @@
 //MineItem.cpp
 
 #include "MineItem.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
 #include "Components/SphereComponent.h"
+#include "GameplayTagContainer.h"
 #include "Kismet/GameplayStatics.h"
 #include  "Particles/ParticleSystemComponent.h"
 
@@ -58,13 +61,28 @@ void AMineItem::Explode()
 	{
 		if (Actor && Actor->IsValidLowLevel() && Actor->ActorHasTag("Player"))
 		{
-			UGameplayStatics::ApplyDamage(
-				Actor,
-				ExplosionDamage,
-				nullptr,
-				this,
-				UDamageType::StaticClass()
-			);
+			IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(Actor);
+			if (!ASCInterface || !DamageEffectClass) continue;
+
+			UAbilitySystemComponent* ASC = ASCInterface->GetAbilitySystemComponent();
+			if (!ASC) continue;
+
+			FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
+			EffectContext.AddSourceObject(this);
+
+			FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
+				DamageEffectClass,
+				1.0f,
+				EffectContext);
+
+			if (SpecHandle.IsValid())
+			{
+				SpecHandle.Data->SetSetByCallerMagnitude(
+					FGameplayTag::RequestGameplayTag(FName("Damage.Amount")),
+					-ExplosionDamage);
+
+				ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+			}
 		}
 	}
 

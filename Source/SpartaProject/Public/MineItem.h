@@ -5,6 +5,8 @@
 #include "BaseItem.h"
 #include "MineItem.generated.h"
 
+class UGameplayEffect;
+
 UCLASS()
 class SPARTAPROJECT_API AMineItem : public ABaseItem
 {
@@ -29,7 +31,9 @@ protected:
 	float ExplosionRadius;
 	// 폭발 데미지
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mine")
-	int ExplosionDamage;
+	float ExplosionDamage;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS | Damage")
+	TSubclassOf<UGameplayEffect> DamageEffectClass;
 	
 	bool bHasExploded;
     

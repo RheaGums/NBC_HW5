@@ -6,6 +6,8 @@
 #include "BaseItem.h"
 #include "ExplosionActor.generated.h"
 
+class UGameplayEffect;
+
 /**
  * 
  */
@@ -22,6 +24,8 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion|Settings")
 	float ExplosionDamage;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS | Damage")
+	TSubclassOf<UGameplayEffect> DamageEffectClass;
 	
 	virtual void ActivateItem(AActor* Activator) override;
     

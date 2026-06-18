@@ -2,9 +2,9 @@
 
 #include "GameplayEffectTypes.h"
 #include "Components/BoxComponent.h"
-#include "Kismet/GameplayStatics.h"
-#include "GameFramework/DamageType.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
+#include "GameplayTagContainer.h"
 
 ASpikeTrap::ASpikeTrap()
 {
@@ -39,7 +39,6 @@ void ASpikeTrap::OnTrapOverlap(UPrimitiveComponent* OverlappedComp, AActor* Othe
                                UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, 
                                bool bFromSweep, const FHitResult& SweepResult)
 {
-
     if (bIsActive && OtherActor)
     {
 
@@ -47,14 +46,26 @@ void ASpikeTrap::OnTrapOverlap(UPrimitiveComponent* OverlappedComp, AActor* Othe
         {
             UE_LOG(LogTemp, Warning, TEXT("[SpikeTrap] 플레이어 가시 밟음! 기본 대미지를 적용합니다."));
 
-
-            UGameplayStatics::ApplyDamage(
-                OtherActor,
-                10.0f,
-                nullptr,
-                this,
-                UDamageType::StaticClass()
-            );
+            IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(OtherActor);
+            if (!ASCInterface || !DamageEffectClass) return;
+            
+            UAbilitySystemComponent* ASC = ASCInterface->GetAbilitySystemComponent();
+            if (!ASC) return;
+            
+            FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
+            EffectContext.AddSourceObject(this);
+            
+            FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
+                DamageEffectClass,
+                1.0f,
+                EffectContext);
+            
+            if (SpecHandle.IsValid())
+            {
+                SpecHandle.Data->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Damage.Amount")),-10.0f);
+                
+                ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+            }
         }
     }
 }
