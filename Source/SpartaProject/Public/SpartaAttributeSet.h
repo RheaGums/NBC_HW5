@@ -1,5 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+// SpartaAttributeSet.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -31,5 +30,7 @@ public:
 	UPROPERTY(BlueprintReadOnly,Category = "Attributes")
 	FGameplayAttributeData MoveSpeed;
 	ATTRIBUTE_ACCESSORS(USpartaAttributeSet, MoveSpeed)
+	
+	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 	
 };

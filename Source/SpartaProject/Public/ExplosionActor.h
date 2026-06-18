@@ -1,9 +1,10 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// ExplosionActor.h
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "BaseItem.h"
+#include "GameplayEffectExtension.h"
 #include "ExplosionActor.generated.h"
 
 class UGameplayEffect;

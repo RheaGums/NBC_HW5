@@ -1,5 +1,4 @@
 #include "SpikeTrap.h"
-
 #include "GameplayEffectTypes.h"
 #include "Components/BoxComponent.h"
 #include "AbilitySystemComponent.h"

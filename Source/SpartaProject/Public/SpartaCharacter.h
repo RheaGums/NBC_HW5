@@ -40,13 +40,13 @@ public:
     void AddHealth(float Amount);
     
     virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-    
-
-protected:
-    float SprintSpeedMultiplier;
     UFUNCTION(BlueprintCallable, Category = "Health")
     virtual void OnDeath();
     void UpdateOverheadHP();
+
+protected:
+    float SprintSpeedMultiplier;
+
     void OnMoveSpeedChanged(const FOnAttributeChangeData& Data);
     void OnBlindTagChanged(const FGameplayTag Tag, int32 Count);
     

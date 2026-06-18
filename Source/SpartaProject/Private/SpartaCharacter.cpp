@@ -77,24 +77,7 @@ UAbilitySystemComponent* ASpartaCharacter::GetAbilitySystemComponent() const
 float ASpartaCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
                                    class AController* EventInstigator, AActor* DamageCauser)
 {
-    float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-    
-    if (AttributeSet)
-    {
-        float NewHealth = FMath::Clamp(
-            AttributeSet->GetHealth() - DamageAmount,
-            0.0f,
-            AttributeSet->GetMaxHealth()
-        );
-        AttributeSet->SetHealth(NewHealth);
-        UpdateOverheadHP();
-
-        if (AttributeSet->GetHealth() <= 0.0f)
-        {
-            OnDeath();
-        }
-    }
-    return ActualDamage;
+    return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
 
 void ASpartaCharacter::OnDeath()
@@ -133,6 +116,7 @@ void ASpartaCharacter::OnBlindTagChanged(const FGameplayTag Tag, int32 Count)
         if (BlindWidgetClass&&!BlindWidgetInstance)
         {
             BlindWidgetInstance = CreateWidget<UUserWidget>(GetWorld(),BlindWidgetClass);
+            
             if (BlindWidgetInstance)
             {
                 BlindWidgetInstance->AddToViewport();
