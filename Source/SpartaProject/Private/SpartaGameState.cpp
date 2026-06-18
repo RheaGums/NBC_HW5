@@ -1,4 +1,4 @@
-//SpartaGameState.cpp
+// SpartaGameState.cpp
 
 #include "SpartaGameState.h"
 #include "SpartaGameInstance.h"
@@ -6,6 +6,7 @@
 #include "SpawnVolume.h"
 #include "ItemSpawnRow.h"
 #include "CoinItem.h"
+#include "BaseItem.h"
 #include "SpikeTrap.h"
 #include "ExplosionActor.h"
 #include "Kismet/GameplayStatics.h"
@@ -24,41 +25,38 @@ ASpartaGameState::ASpartaGameState()
 	MaxWaves = 3;
 	WaveDuration = 20.0f;
 	ItemSpawnCountPerWave = 15;
-	
-		
 }
 
 void ASpartaGameState::BeginPlay()
 {
-		Super::BeginPlay();
-	
-		// UpdateHUD();
-		StartLevel();
-	
-		GetWorldTimerManager().SetTimer(
-			HUDUpdateTimerHandle,
-			this,
-			&ASpartaGameState::UpdateHUD,
-			0.1f,
-			true
-		);
+	Super::BeginPlay();
+
+	StartLevel();
+
+	GetWorldTimerManager().SetTimer(
+		HUDUpdateTimerHandle,
+		this,
+		&ASpartaGameState::UpdateHUD,
+		0.1f,
+		true
+	);
 }
 
 int32 ASpartaGameState::GetScore() const
 {
-		return Score;
+	return Score;
 }
 
 void ASpartaGameState::AddScore(int32 Amount)
 {
-		if (UGameInstance* GameInstance = GetGameInstance())
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
+		if (SpartaGameInstance)
 		{
-			USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
-			if (SpartaGameInstance)
-			{
-				SpartaGameInstance->AddToScore(Amount);
-			}
+			SpartaGameInstance->AddToScore(Amount);
 		}
+	}
 }
 
 void ASpartaGameState::StartLevel()
@@ -70,6 +68,7 @@ void ASpartaGameState::StartLevel()
 			SpartaPlayerController->ShowGameHUD();
 		}
 	}
+
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
 		USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
@@ -82,7 +81,7 @@ void ASpartaGameState::StartLevel()
 	SpawnedCoinCount = 0;
 	CollectedCoinCount = 0;
 	CurrentWaveIndex = 0;
-	
+
 	StartWave(0);
 }
 
@@ -93,105 +92,110 @@ void ASpartaGameState::OnLevelTimeUp()
 
 void ASpartaGameState::StartWave(int32 WaveIndex)
 {
-    CurrentWaveIndex = WaveIndex;
-    UE_LOG(LogTemp, Warning, TEXT("Starting Wave %d"), CurrentWaveIndex + 1);
-    if (GEngine)
-    {
-        GEngine->AddOnScreenDebugMessage(
-            -1, 3.0f, FColor::Yellow,
-            FString::Printf(TEXT("Starting Wave %d"), CurrentWaveIndex + 1)
-        );
-    }
+	CurrentWaveIndex = WaveIndex;
+	UE_LOG(LogTemp, Warning, TEXT("Starting Wave %d"), CurrentWaveIndex + 1);
 
-    // 💡 첫 웨이브(0번)일 때는 메인 메뉴 전환 직후이므로 0.5초의 안전 시간을 주고,
-    // 인게임 내에서 자연스럽게 전환되는 다음 웨이브(1, 2번)들은 기존대로 0.1초만에 바로 실행되도록 가변 딜레이를 적용합니다.
-    float InitialDelay = (WaveIndex == 0) ? 0.5f : 0.1f;
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			3.0f,
+			FColor::Yellow,
+			FString::Printf(TEXT("Starting Wave %d"), CurrentWaveIndex + 1)
+		);
+	}
 
-    FTimerHandle SpawnDelayHandle;
-    GetWorldTimerManager().SetTimer(SpawnDelayHandle, [this, WaveIndex]()
-    {
-        TArray<AActor*> FoundVolumes;
-        UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
+	const float InitialDelay = (WaveIndex == 0) ? 0.5f : 0.1f;
 
-        if (FoundVolumes.Num() > 0)
-        {
-            ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]);
-            if (SpawnVolume)
-            {
-                FWaveSpawnRow* WaveData = SpawnVolume->GetWaveData(WaveIndex);
-                if (WaveData)
-                {
-                    WaveDuration = WaveData->WaveTime;
-                    ItemSpawnCountPerWave = WaveData->SpawnCount;
-                }
+	FTimerHandle SpawnDelayHandle;
+	GetWorldTimerManager().SetTimer(SpawnDelayHandle, [this, WaveIndex]()
+	{
+		TArray<AActor*> FoundVolumes;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
 
-                SpawnVolume->SetWaveIndex(CurrentWaveIndex);
-                
-                int32 ActualSpawnedCount = 0; // 로그 확인용 변수
-                for (int32 i = 0; i < ItemSpawnCountPerWave; i++)
-                {
-                    AActor* SpawnedActor = SpawnVolume->SpawnRandomItem();
-                    if (SpawnedActor)
-                    {
-                        ActualSpawnedCount++;
-                        if (SpawnedActor->IsA(ACoinItem::StaticClass()))
-                        {
-                            SpawnedCoinCount++;
-                        }
-                    }
-                }
-                UE_LOG(LogTemp, Log, TEXT("[GameState] Wave %d 스폰 시도 결과: 요청 %d개 중 %d개 성공"), WaveIndex + 1, ItemSpawnCountPerWave, ActualSpawnedCount);
-            }
-        }
-        else
-        {
-            // 💡 디버깅용 로그: 만약 0.5초 뒤에도 스폰 볼륨을 못 찾으면 맵 배치 상태를 봐야 합니다.
-            UE_LOG(LogTemp, Error, TEXT("[GameState]  월드에서 SpawnVolume 액터를 찾지 못했습니다!"));
-        }
+		if (FoundVolumes.Num() > 0)
+		{
+			ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]);
+			if (SpawnVolume)
+			{
+				FWaveSpawnRow* WaveData = SpawnVolume->GetWaveData(WaveIndex);
+				if (WaveData)
+				{
+					WaveDuration = WaveData->WaveTime;
+					ItemSpawnCountPerWave = WaveData->SpawnCount;
+				}
 
-        GetWorldTimerManager().SetTimer(
-            LevelTimerHandle,
-            this,
-            &ASpartaGameState::OnWaveTimeUp,
-            WaveDuration,
-            false
-        );
+				SpawnVolume->SetWaveIndex(CurrentWaveIndex);
 
-        switch (CurrentWaveIndex)
-        {
-        case 0:
-            ShowWaveNotification(TEXT("Wave 1: 아이템을 수집하세요!"));
-            break;
-        case 1:
-            ShowWaveNotification(TEXT("위험! 스파이크 함정이 발동되었습니다...!"));
-            ActivateSpikeTraps();
-            break;
-        case 2:
-            ShowWaveNotification(TEXT("경고! 맵 전역에 무작위 폭발이 발생합니다!"));
-            StartRandomExplosions();
-        	ActivateSpikeTraps();
-            break;
-        default:
-            break;
-        }
+				int32 ActualSpawnedCount = 0;
+				for (int32 i = 0; i < ItemSpawnCountPerWave; i++)
+				{
+					AActor* SpawnedActor = SpawnVolume->SpawnRandomItem();
+					if (SpawnedActor)
+					{
+						ActualSpawnedCount++;
+						if (SpawnedActor->IsA(ACoinItem::StaticClass()))
+						{
+							SpawnedCoinCount++;
+						}
+					}
+				}
 
-    }, InitialDelay, false);
+				UE_LOG(
+					LogTemp,
+					Log,
+					TEXT("[GameState] Wave %d spawn result: requested %d, spawned %d"),
+					WaveIndex + 1,
+					ItemSpawnCountPerWave,
+					ActualSpawnedCount);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[GameState] Could not find a SpawnVolume in the level."));
+		}
+
+		GetWorldTimerManager().SetTimer(
+			LevelTimerHandle,
+			this,
+			&ASpartaGameState::OnWaveTimeUp,
+			WaveDuration,
+			false
+		);
+
+		switch (CurrentWaveIndex)
+		{
+		case 0:
+			ShowWaveNotification(TEXT("Wave 1: Collect the items!"));
+			break;
+		case 1:
+			ShowWaveNotification(TEXT("Danger! Spike traps are active!"));
+			ActivateSpikeTraps();
+			break;
+		case 2:
+			ShowWaveNotification(TEXT("Warning! Random explosions are starting!"));
+			StartRandomExplosions();
+			ActivateSpikeTraps();
+			break;
+		default:
+			break;
+		}
+	}, InitialDelay, false);
 }
 
 void ASpartaGameState::EndWave()
 {
-
 	GetWorldTimerManager().ClearTimer(LevelTimerHandle);
-	
+
 	if (GetWorldTimerManager().IsTimerActive(ExplosionTimerHandle))
 	{
 		GetWorldTimerManager().ClearTimer(ExplosionTimerHandle);
-		UE_LOG(LogTemp, Warning, TEXT("웨이브가 종료되어 폭발 타이머를 제거했습니다."));
+		UE_LOG(LogTemp, Warning, TEXT("Wave ended. Stopping explosion timer."));
 	}
 
 	ClearExistingItems();
 
-	int32 NextWave = CurrentWaveIndex + 1;
+	const int32 NextWave = CurrentWaveIndex + 1;
 	if (NextWave < MaxWaves)
 	{
 		StartWave(NextWave);
@@ -204,19 +208,17 @@ void ASpartaGameState::EndWave()
 
 void ASpartaGameState::ClearExistingItems()
 {
-
 	TArray<AActor*> FoundItems;
-	
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseItem::StaticClass(), FoundItems);
-    
+
 	for (AActor* Item : FoundItems)
 	{
 		if (Item)
 		{
-			Item->Destroy(); // 액터 삭제
+			Item->Destroy();
 		}
 	}
-	
+
 	SpawnedCoinCount = 0;
 	CollectedCoinCount = 0;
 }
@@ -229,7 +231,7 @@ void ASpartaGameState::OnWaveTimeUp()
 void ASpartaGameState::OnCoinCollected()
 {
 	CollectedCoinCount++;
-	
+
 	if (SpawnedCoinCount > 0 && CollectedCoinCount >= SpawnedCoinCount)
 	{
 		EndWave();
@@ -239,7 +241,7 @@ void ASpartaGameState::OnCoinCollected()
 void ASpartaGameState::EndLevel()
 {
 	GetWorldTimerManager().ClearTimer(LevelTimerHandle);
-	
+
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
 		USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
@@ -248,13 +250,13 @@ void ASpartaGameState::EndLevel()
 			AddScore(Score);
 			CurrentLevelIndex++;
 			SpartaGameInstance->CurrentLevelIndex = CurrentLevelIndex;
-			
+
 			if (CurrentLevelIndex >= MaxLevels)
 			{
 				OnGameOver();
 				return;
 			}
-			
+
 			if (LevelMapNames.IsValidIndex(CurrentLevelIndex))
 			{
 				FTimerHandle LevelChangeTimer;
@@ -295,10 +297,10 @@ void ASpartaGameState::UpdateHUD()
 			{
 				if (UTextBlock* TimeText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Time"))))
 				{
-					float RemainingTime = GetWorldTimerManager().GetTimerRemaining(LevelTimerHandle);
+					const float RemainingTime = GetWorldTimerManager().GetTimerRemaining(LevelTimerHandle);
 					TimeText->SetText(FText::FromString(FString::Printf(TEXT("Time: %.1f"), RemainingTime)));
 				}
-				
+
 				if (UTextBlock* ScoreText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Score"))))
 				{
 					if (UGameInstance* GameInstance = GetGameInstance())
@@ -310,19 +312,21 @@ void ASpartaGameState::UpdateHUD()
 						}
 					}
 				}
-				
+
 				if (UTextBlock* LevelIndexText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Level"))))
 				{
 					LevelIndexText->SetText(FText::FromString(FString::Printf(TEXT("Level: %d"), CurrentLevelIndex + 1)));
 				}
+
 				if (UTextBlock* WaveText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Wave"))))
 				{
-					WaveText->SetText(FText::FromString(FString::Printf(TEXT("Wave: %d"),CurrentWaveIndex+1)));
+					WaveText->SetText(FText::FromString(FString::Printf(TEXT("Wave: %d"), CurrentWaveIndex + 1)));
 				}
 			}
 		}
 	}
 }
+
 void ASpartaGameState::ShowWaveNotification(FString Message)
 {
 	if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
@@ -334,13 +338,13 @@ void ASpartaGameState::ShowWaveNotification(FString Message)
 				if (UTextBlock* NotiText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("NotificationText"))))
 				{
 					NotiText->SetText(FText::FromString(Message));
-                    
+
 					FTimerHandle ClearNotiTimer;
 					GetWorldTimerManager().SetTimer(
-						ClearNotiTimer, 
-						this, 
-						&ASpartaGameState::ClearNotificationText, 
-						3.0f, 
+						ClearNotiTimer,
+						this,
+						&ASpartaGameState::ClearNotificationText,
+						3.0f,
 						false
 					);
 				}
@@ -348,6 +352,7 @@ void ASpartaGameState::ShowWaveNotification(FString Message)
 		}
 	}
 }
+
 void ASpartaGameState::StartRandomExplosions()
 {
 	GetWorldTimerManager().SetTimer(
@@ -355,43 +360,43 @@ void ASpartaGameState::StartRandomExplosions()
 		this,
 		&ASpartaGameState::TriggerSingleExplosion,
 		3.0f,
-		true // 반복 실행
+		true
 	);
 }
 
 void ASpartaGameState::TriggerSingleExplosion()
 {
-	if (!ExplosionActorClass) 
+	if (!ExplosionActorClass)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[GameState] ExplosionActorClass가 지정되지 않았습니다!"));
+		UE_LOG(LogTemp, Error, TEXT("[GameState] ExplosionActorClass is not set."));
 		return;
 	}
 
-
 	if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
 	{
-		FVector PlayerLoc = PlayerPawn->GetActorLocation();
-		
-		FVector ExplosionLoc = PlayerLoc + FVector(FMath::FRandRange(-500.f, 500.f), FMath::FRandRange(-500.f, 500.f), 0.f);
-		
+		const FVector PlayerLoc = PlayerPawn->GetActorLocation();
+		const FVector ExplosionLoc = PlayerLoc + FVector(
+			FMath::FRandRange(-500.f, 500.f),
+			FMath::FRandRange(-500.f, 500.f),
+			0.f);
+
 		FActorSpawnParameters SpawnParams;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn; // 어떤 지형이든 씹고 무조건 스폰 보장
-        
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
 		GetWorld()->SpawnActor<AExplosionActor>(
-			ExplosionActorClass, 
-			ExplosionLoc, 
-			FRotator::ZeroRotator, 
+			ExplosionActorClass,
+			ExplosionLoc,
+			FRotator::ZeroRotator,
 			SpawnParams
 		);
-        
-		UE_LOG(LogTemp, Warning, TEXT("[GameState] 플레이어 근처 폭발 액터 생성 완료! 위치: %s"), *ExplosionLoc.ToString());
+
+		UE_LOG(LogTemp, Warning, TEXT("[GameState] Spawned explosion near player at: %s"), *ExplosionLoc.ToString());
 	}
 }
 
 void ASpartaGameState::ActivateSpikeTraps()
 {
 	TArray<AActor*> FoundTraps;
-	// 맵에 있는 모든 SpikeTrap 액터를 긁어모읍니다.
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpikeTrap::StaticClass(), FoundTraps);
 
 	for (AActor* Actor : FoundTraps)
@@ -401,8 +406,8 @@ void ASpartaGameState::ActivateSpikeTraps()
 			Trap->SetTrapActive(true);
 		}
 	}
-    
-	UE_LOG(LogTemp, Warning, TEXT("맵 안의 모든 스파이크 함정이 활성화되었습니다!"));
+
+	UE_LOG(LogTemp, Warning, TEXT("All spike traps in the map are now active."));
 }
 
 void ASpartaGameState::ClearNotificationText()

@@ -10,14 +10,16 @@
 
 ASpartaPlayerController::ASpartaPlayerController()
 	: InputMappingContext(nullptr),
-		MoveAction(nullptr),
-		JumpAction(nullptr),
-		LookAction(nullptr),
-		SprintAction(nullptr),
-		HUDWidgetInstance(nullptr),
-		HUDWidgetClass(nullptr),
-		MainMenuWidgetClass(nullptr),
-		MainMenuWidgetInstance(nullptr)
+	  MoveAction(nullptr),
+	  JumpAction(nullptr),
+	  LookAction(nullptr),
+	  SprintAction(nullptr),
+	  HUDWidgetClass(nullptr),
+	  HUDWidgetInstance(nullptr),
+	  MainMenuWidgetClass(nullptr),
+	  MainMenuWidgetInstance(nullptr),
+	  GameOverMenuWidgetClass(nullptr),
+	  GameOverMenuWidgetInstance(nullptr)
 {
 	
 }
