@@ -117,6 +117,8 @@ void ASpartaCharacter::OnBlindTagChanged(const FGameplayTag Tag, int32 Count)
         {
             BlindWidgetInstance = CreateWidget<UUserWidget>(GetWorld(),BlindWidgetClass);
             
+            if (!IsValid(this)) return;
+            
             if (BlindWidgetInstance)
             {
                 BlindWidgetInstance->AddToViewport();
